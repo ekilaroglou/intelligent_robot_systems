@@ -90,18 +90,22 @@ class Navigation:
                     self.robot_perception.origin['y'] / self.robot_perception.resolution\
                     ]
 
-        # Find the distance between the robot pose and the next subtarget
-        dist = math.hypot(\
-            rx - self.subtargets[self.next_subtarget][0], \
-            ry - self.subtargets[self.next_subtarget][1])
 
         ######################### NOTE: QUESTION  ##############################
         # What if a later subtarget or the end has been reached before the 
         # next subtarget? Alter the code accordingly.
         # Check if distance is less than 7 px (14 cm)
-        if dist < 5:
-          self.next_subtarget += 1
-          self.counter_to_next_sub = self.count_limit
+
+	# Find the distance between the robot pose and the next subtarget
+	# for all subtargets from next_subtarget until the last subtarget
+	for i in range(self.next_subtarget, len(self.subtargets)):
+	  dist = math.hypot(\
+          rx - self.subtargets[i][0], \
+          ry - self.subtargets[i][1])
+	# Check if distance is less than 7 px (14 cm)
+          if dist < 7:
+            self.next_subtarget = 1 + i
+            self.counter_to_next_sub = self.count_limit
           # Check if the final subtarget has been approached
           if self.next_subtarget == len(self.subtargets):
             self.target_exists = False
@@ -230,7 +234,13 @@ class Navigation:
           # Fill the ps.pose.position values to show the path in RViz
           # You must understand what self.robot_perception.resolution
           # and self.robot_perception.origin are.
-        
+
+          #print (p, "HERE")
+	  ps.pose.position.x = p[0] * self.robot_perception.resolution + \
+          self.robot_perception.origin['x']
+          ps.pose.position.y = p[1] * self.robot_perception.resolution + \
+          self.robot_perception.origin['y']
+
           ########################################################################
           ros_path.poses.append(ps)
         self.path_publisher.publish(ros_path)
@@ -279,7 +289,31 @@ class Navigation:
         if self.subtargets and self.next_subtarget <= len(self.subtargets) - 1:
             st_x = self.subtargets[self.next_subtarget][0]
             st_y = self.subtargets[self.next_subtarget][1]
-            
+	# angle beetween next_subtarget and robot --> angle
+    	    angle = math.atan2(st_y - ry, st_x - rx)
+	# k = delta theta ( the angle between angle and theta
+	    k = angle - theta
+	    if k >= 0:
+	      if k < math.pi:
+	        omega = k / math.pi
+	      else: 
+	        omega = (k - 2 * math.pi) / math.pi
+	    else:
+	      if k > -math.pi:
+	        omega = k / math.pi
+	      else:
+	        omega = (k + 2 * math.pi) / math.pi
+
+            if k > 0:
+	      angular = 0.3
+	    elif k < 0:
+ 	      angular = -0.3
+	    else:
+	      angular = 0
+
+    	    linear = 0.3 * (1 - abs(omega)) ** 10
+
+	    
         ######################### NOTE: QUESTION  ##############################
 
         return [linear, angular]
